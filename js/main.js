@@ -23,7 +23,7 @@ game.state.add('play', play);
 
 // Start from menu screen
 // Might need separate loading screen in case asset loading takes time
-game.state.start('play');
+game.state.start('boot');
 
 // Global function for UI
 function barUI() {
