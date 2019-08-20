@@ -1,38 +1,79 @@
 // Constructor
-function Player(game, key, frame, bulletKey) {
+function Player(game, x, y) {
 	// Phaser.Sprite(game, x, y, key)
 	// game.rnd.integerInRange(min, max) returns rand int between min, max
-	Phaser.Sprite.call(this, game, 30, 1100, key);
+	Phaser.Sprite.call(this, game, x, y, 'player');
 	
-	// Need to rescale the sprite img file
-	this.scale.x = 0.2;
-	this.scale.y = 0.2;
-	
-	// physics crap
-	game.physics.enable(this, Phaser.Physics.ARCADE);
-	this.body.bounce.y = 0.2;
-	this.body.gravity.y = 300;
-	this.body.drag.set(50);
+	// Physics
+	this.game.physics.arcade.enable(this);
+	this.anchor.set(0.5);
+	this.velX = 150;
+	this.velY = 150;
+	this.body.maxVelocity = 500;
 	this.body.collideWorldBounds = true;
 	
-	// anchor: Origin of the texture
-	// 0.5 = center
-	this.anchor.set(0.5);
-	this.direction = 'right';
+	// Controls
+	this.keys = {};
+	this.keys.left = this.game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+	this.keys.right = this.game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+	this.keys.up = this.game.input.keyboard.addKey(Phaser.Keyboard.UP);
+	this.keys.down = this.game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
+	this.keys.interact = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+	
+	// State Info
+	this.direction = 'front';
 	this.isInvincible = false;
 
 	// Character info
-	this.pooCount = 50;
 
-	// Bullets
-	this.bullets = game.add.group();
-	//this.bullets.scale.setTo(0.1);
-	this.bullets.enableBody = true;
-	this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
-	this.bullets.createMultiple(300, bulletKey);
-	this.bullets.checkWorldBounds = true;
-	this.bullets.outOfBoundsKill = true;
-}
+	// FSM
+	this.fsm = new PhaserFSM([
+	{
+		name: 'idle',
+		initial: true,
+		onEnter: function(){},
+		onUpdate: function(){
+			this.move();
+			if(this.keys.interact.justDown) {
+				this.interact();
+			}
+		},
+		onLeave: function(){},
+		transitions: {
+			'walk': 'walking',
+			'interact': 'interact'
+		}
+	},
+	{
+		name: 'walking',
+		initial: false,
+		onEnter: function(){},
+		onUpdate: function(){
+			this.move();
+			if(this.body.velocity.x === 0)
+				this.fsm.consumeEvent('stop');
+			if(this.keys.interact.justDown)
+				this.interact();
+		},
+		onLeave: function(){},
+		transitions: {
+			'stop': 'idle',
+			'interact': 'interact'
+		}
+	},
+	{
+		name: 'interact',
+		initial: false,
+		onEnter: function(){},
+		onUpdate: function(){
+			this.body.velocity = 0
+		},
+		onLeave: function(){},
+		transitions: {
+			'stop': 'idle'
+		}
+	}], this);
+};
 
 // explicitly define prefab's prototype (Phaser.Sprite) and constructor
 Player.prototype = Object.create(Phaser.Sprite.prototype);
@@ -40,103 +81,48 @@ Player.prototype.constructor = Player;
 
 // override Phaser.Sprite update
 Player.prototype.update = function() {
+	// this.animations.play(this.fsm.getState().name);
+};
+
+Player.prototype.move = function() {
+	this.setVelocity(0);
+
 	if (this.alive) {
 		// Controls
-		if(game.input.keyboard.isDown(Phaser.Keyboard.LEFT)){
-			this.body.velocity.x -= 3;
-			// changing values for test, uncomment out commented code for normal value
-			//this.body.velocity.x -= 10;
-			
-			if(this.body.acceleration.x < -150 || this.body.velocity.x < -150)
-				this.body.velocity.x = -150;
-
+		// Vertical
+		if(this.keys.up.isDown) {
+			this.body.velocity.y = -this.velY;
+			this.direction = 'back';
+		}
+		else if(this.keys.down.isDown) {
+			this.body.velocity.y = this.velY;
+			this.direction = 'front';
+		}
+		// Horizontal
+		if(this.keys.left.isDown) {
+			this.body.velocity.x = -this.velX;
 			this.direction = 'left';
-			this.scale.x = -0.2;
 		}
-		else if(game.input.keyboard.isDown(Phaser.Keyboard.RIGHT)){
-			this.body.velocity.x += 3;
-			//this.body.velocity.x += 10;
-			if(this.body.acceleration.x > 150 || this.body.velocity.x > 150)
-				this.body.velocity.x = 150;
-
+		else if(this.keys.right.isDown) {
+			this.body.velocity.x = this.velX;
 			this.direction = 'right';
-			this.scale.x = 0.2;
-		}
-		else{
-			this.body.acceleration.x = 0;
-			if (this.body.velocity.x < 0) {
-				if (this.body.velocity.x > 0)
-					this.body.velocity.x = 0;
-				else
-					this.body.velocity.x += 3;
-			}
-			if (this.body.velocity.x > 0)
-				if (this.body.velocity.x < 0)
-					this.body.velocity.x = 0;
-				else
-					this.body.velocity.x -= 3;
 		}
 
-		// poopack for jumping
-		if(game.input.keyboard.justPressed(Phaser.Keyboard.UP)){
-			this.body.velocity.y = -100;
-			this.fire(true);
-		}
-
-		// Attack move
-		if(game.input.keyboard.justPressed(Phaser.Keyboard.SPACEBAR))
-			this.fire(false);
-
-		// Bullet rotation
-		this.bullets.forEachAlive(function(bullet){bullet.rotation += Phaser.Math.degToRad(2); }, this);
+		// FSM handling
+		if(this.body.velocity.x !== 0 || this.body.velocity.y !== 0 )
+			this.fsm.consumeEvent('walk');
 	}
 }
 
-// isJump: set to true if its not attack
-Player.prototype.fire = function(isJump) {
-	let star = this.bullets.getFirstExists(false);
-	if(star){
-			star.scale.setTo(0.1,0.1);
-		game.physics.enable(this, Phaser.Physics.ARCADE);
-		if (isJump) {
-			star.body.bounce.y = 0.2;
-			star.body.gravity.y = 90;
-			star.reset(player.x + 27, player.y + 20);
-			star.body.velocity.y = 150;
-			star.angle = 90;
-			star.scale.x = 0.15;
-			// game.camera.shake(0.005, 500);
-		}
-		else {
+Player.prototype.interact = function(target) {
+	// If obj exist, do range check
+	// FSM handling
+	this.fsm.consumeEvent('interact');
+}
 
-			star.body.bounce.y = 1;
-			star.body.gravity.y = 90;
-			star.body.collideWorldBounds = false;
-			// Need to tweak numbers for starting point for shooting
-			if (this.direction == 'right') {
-				star.reset(player.x + 10, player.y - 10);
-				star.body.velocity.x = 250;
-				//recoil to player from shooting
-				this.body.velocity.x = -70;
-			}
-			else {
-				star.reset(player.x - 10, player.y - 10);
-				star.body.velocity.x = -250;
-				//recoil 
-				this.body.velocity.x = 70;
-			}
-		}
-		console.log(this.pooCount);
-		this.pooCount--;
-		star.body.collideWorldBounds = false;
-		var fart = game.add.audio('fart', 0.5);
-		if(this.pooCount < 100 && this.pooCount > -1){
-			fart.play();
-		}
-
-		// Check pooCount after action
-		this.death();
-	}
+Player.prototype.setVelocity = function(v) {
+	this.body.velocity.x = v;
+	this.body.velocity.y = v;
 }
 
 Player.prototype.death = function() {
