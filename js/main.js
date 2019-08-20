@@ -2,7 +2,6 @@ var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game');
 
 // Global vars
 // Defaults
-var keys = [];
 var BGM = [];	// Array to sava all loaded BG's
 var SFX = [];	// Array to save all loaded SFX's
 const BGVOL = 0.5;
@@ -14,6 +13,10 @@ var devMode = false;
 
 // Main char
 var player;
+
+var Preloader = function(game) {
+	this.game = game;
+};
 
 // State management
 game.state.add('boot', boot);
