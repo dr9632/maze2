@@ -9,14 +9,10 @@ const BGVOL = 0.5;
 // Settings
 var bgcolor = "#000"
 var savedData;	// For local data storage
-var devMode = false;
+var devMode = true;
 
 // Main char
 var player;
-
-var Preloader = function(game) {
-	this.game = game;
-};
 
 // State management
 game.state.add('boot', boot);
