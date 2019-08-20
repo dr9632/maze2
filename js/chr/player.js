@@ -23,7 +23,6 @@ function Player(game, x, y) {
 	// State Info
 	this.direction = 'front';
 	this.isInvincible = false;
-	this.body.dedug = devMode;
 
 	// Character info
 

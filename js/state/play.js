@@ -10,7 +10,7 @@ play.prototype = {
 		if (devMode) game.time.advancedTiming = true;
 		
 		// player
-		player = new Player(game, 64, game.world.height - 100, 'player');
+		player = new Player(game, game.world.width/2, game.world.height/2, 'player');
 		game.add.existing(player);
 	},
 	update: function() {
@@ -18,7 +18,8 @@ play.prototype = {
 	},
 	render: function() {
 		if (devMode){
-			game.debug.text('fps: ' + game.time.fps, 32, 86, 'yellow');
+			game.debug.text('fps: ' + game.time.fps, 32, 32, 'yellow');
+			game.debug.body(player);
 		}
 	}
 }
